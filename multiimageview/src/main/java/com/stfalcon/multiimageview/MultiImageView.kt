@@ -215,39 +215,52 @@ class MultiDrawable(val context: Context, val bitmaps: ArrayList<Bitmap>, val cu
     }
 
     fun draw() {
-        val width = bounds.width()
-        val height = bounds.height()
+        val oriWidth = bounds.width()
+        val oriHeight = bounds.height()
+
+        val widthDivider = bounds.width() / 2
+        val heightDivider = bounds.height() / 2
+
+        var separateSize = if (customAttribute.separateLine) (customAttribute.size / 2) else 0
 
         if (bitmaps.size == 1) {
-            val bitmap = scaleCenterCrop(bitmaps[0], width, width)
+            val bitmap = scaleCenterCrop(bitmaps[0], oriWidth, oriHeight)
 
-            items.add(PhotoItem(bitmap, Rect(0, 0, width, width)))
+            items.add(PhotoItem(bitmap, Rect(0, 0, oriWidth, oriHeight)))
         } else if (bitmaps.size == 2) {
-            val bitmap1 = scaleCenterCrop(bitmaps[0], width / 2, width)
-            val bitmap2 = scaleCenterCrop(bitmaps[1], width / 2, width)
+            val bitmap1 = scaleCenterCrop(bitmaps[0], widthDivider, oriHeight)
+            val bitmap2 = scaleCenterCrop(bitmaps[1], widthDivider, oriHeight)
 
-            items.add(PhotoItem(bitmap1, Rect(0, 0, width / 2, width)))
-            items.add(PhotoItem(bitmap2, Rect(width / 2, 0, width, width)))
+            // left
+            items.add(PhotoItem(bitmap1, Rect(0, 0, widthDivider - separateSize, oriHeight)))
+            // right
+            items.add(PhotoItem(bitmap2, Rect(widthDivider + separateSize, 0, oriWidth + separateSize, oriHeight)))
         } else if (bitmaps.size == 3) {
-            val bitmap1 = scaleCenterCrop(bitmaps[0], width / 2, width)
-            val bitmap2 = scaleCenterCrop(bitmaps[1], width / 2, width / 2)
-            val bitmap3 = scaleCenterCrop(bitmaps[2], width / 2, width / 2)
+            val bitmap1 = scaleCenterCrop(bitmaps[0], widthDivider, oriHeight)
+            val bitmap2 = scaleCenterCrop(bitmaps[1], widthDivider, heightDivider)
+            val bitmap3 = scaleCenterCrop(bitmaps[2], widthDivider, heightDivider)
 
-            items.add(PhotoItem(bitmap1, Rect(0, 0, width / 2, width)))
-            items.add(PhotoItem(bitmap2, Rect(width / 2, 0, width, width / 2)))
-            items.add(PhotoItem(bitmap3, Rect(width / 2, width / 2, width, width)))
-        } else if (bitmaps.size > 4) {
-            val bitmap1 = scaleCenterCrop(bitmaps[0], width / 2, width / 2)
-            val bitmap2 = scaleCenterCrop(bitmaps[1], width / 2, width / 2)
-            val bitmap3 = scaleCenterCrop(bitmaps[2], width / 2, width / 2)
-            val bitmap4 = scaleCenterCrop(bitmaps[3], width / 2, width / 2)
+            // left
+            items.add(PhotoItem(bitmap1, Rect(0, 0, widthDivider - separateSize, oriHeight)))
 
-            items.add(PhotoItem(bitmap1, Rect(0, 0, width / 2, width / 2)))
-            items.add(PhotoItem(bitmap2, Rect(0, width / 2, width / 2, width)))
-            items.add(PhotoItem(bitmap3, Rect(width / 2, 0, width, width / 2)))
-            items.add(PhotoItem(bitmap4, Rect(width / 2, width / 2, width, width)))
+            // right
+            items.add(PhotoItem(bitmap2, Rect(widthDivider + separateSize, 0, oriWidth + separateSize, widthDivider - separateSize)))
+            items.add(PhotoItem(bitmap3, Rect(widthDivider + separateSize, heightDivider + separateSize, oriWidth + separateSize, oriHeight + separateSize)))
+        } else if (bitmaps.size == 4) {
+            val bitmap1 = scaleCenterCrop(bitmaps[0], widthDivider, heightDivider)
+            val bitmap2 = scaleCenterCrop(bitmaps[1], widthDivider, heightDivider)
+            val bitmap3 = scaleCenterCrop(bitmaps[2], widthDivider, heightDivider)
+            val bitmap4 = scaleCenterCrop(bitmaps[3], widthDivider, heightDivider)
+
+            // left
+            items.add(PhotoItem(bitmap1, Rect(0, 0, widthDivider - separateSize, widthDivider - separateSize)))
+            items.add(PhotoItem(bitmap2, Rect(0, widthDivider, widthDivider, oriHeight)))
+            // right
+            items.add(PhotoItem(bitmap3, Rect(widthDivider + separateSize, 0, oriWidth + separateSize, widthDivider - separateSize)))
+            items.add(PhotoItem(bitmap4, Rect(widthDivider + separateSize, heightDivider + separateSize, oriWidth + separateSize, oriHeight + separateSize)))
         }
     }
+
 
     override fun draw(canvas: Canvas?) {
         if (canvas != null) {
