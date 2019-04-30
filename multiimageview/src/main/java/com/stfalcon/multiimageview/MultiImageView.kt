@@ -32,10 +32,15 @@ import java.util.*
  * Modified by DaeJunLee on 04/30/19.
  */
 
-class MultiImageView(context: Context, attrs: AttributeSet) : ImageView(context, attrs) {
+class MultiImageView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) : ImageView(context, attrs) {
     //Types of shape
     enum class Shape {
         CIRCLE, RECTANGLE, NONE
+    }
+
+    // Types of Shape's position
+    enum class ShapePosition {
+        LEFT_TOP, RIGHT_TOP, LEFT_BOTTOM, RIGHT_BOTTOM
     }
 
     //Shape of view
@@ -45,12 +50,37 @@ class MultiImageView(context: Context, attrs: AttributeSet) : ImageView(context,
             invalidate()
         }
     //Corners radius for rectangle shape
-    var rectCorners = 100
+    var rectCorners = 30
+
+    data class CustomAttribute(
+            val separateLine: Boolean,
+            val color: Int,
+            val size: Int)
 
     private val bitmaps = ArrayList<Bitmap>()
     private val path = Path()
     private val rect = RectF()
     private var multiDrawable: Drawable? = null
+
+    private val customAttribute: CustomAttribute
+
+    init {
+        customAttribute = MultiImageView(attrs)
+    }
+
+    private fun MultiImageView(attrs: AttributeSet?) : CustomAttribute {
+        return if (attrs != null) {
+
+            val types = context.obtainStyledAttributes(attrs, R.styleable.MultiImageView)
+            val separateLine = types.getBoolean(R.styleable.MultiImageView_separateLine, false)
+            val color = types.getColor(R.styleable.MultiImageView_separateColor, Color.WHITE)
+            val size = types.getDimension(R.styleable.MultiImageView_separateSize, 0.0f).toInt()
+
+            CustomAttribute(separateLine, color, size)
+        } else {
+            CustomAttribute(false, 0, 0)
+        }
+    }
 
     /**
      * Add image to view
@@ -77,7 +107,7 @@ class MultiImageView(context: Context, attrs: AttributeSet) : ImageView(context,
      * recreate MultiDrawable and set it as Drawable to ImageView
      */
     private fun refresh() {
-        multiDrawable = MultiDrawable(bitmaps)
+        multiDrawable = MultiDrawable(context, bitmaps, customAttribute)
         setImageDrawable(multiDrawable)
     }
 
@@ -89,6 +119,7 @@ class MultiImageView(context: Context, attrs: AttributeSet) : ImageView(context,
                     path.reset()
                     //ImageView size
                     rect.set(0f, 0f, width.toFloat(), height.toFloat())
+
                     if (shape == Shape.RECTANGLE) {
                         //Rectangle with corners
                         path.addRoundRect(rect, rectCorners.toFloat(),
@@ -97,6 +128,15 @@ class MultiImageView(context: Context, attrs: AttributeSet) : ImageView(context,
                         //Oval
                         path.addOval(rect, Path.Direction.CW)
                     }
+
+                    // TODO : get color from xml and drawing the oval but it it not working.. [START]
+                    /*val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+                    paint.color = customAttribute.color
+                    paint.style = Paint.Style.STROKE
+                    paint.strokeCap = Paint.Cap.ROUND
+                    paint.strokeJoin = Paint.Join.ROUND
+                    canvas.drawPaint(paint)*/
+                    // TODO : get color from xml and drawing the oval but it it not working.. [NED]
                     //Clip with shape
                     canvas.clipPath(path)
                 }
@@ -106,7 +146,7 @@ class MultiImageView(context: Context, attrs: AttributeSet) : ImageView(context,
     }
 }
 
-class MultiDrawable(val bitmaps: ArrayList<Bitmap>) : Drawable() {
+class MultiDrawable(val context: Context, val bitmaps: ArrayList<Bitmap>, val customAttribute: MultiImageView.CustomAttribute) : Drawable() {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val items = ArrayList<PhotoItem>()
 
@@ -127,39 +167,50 @@ class MultiDrawable(val bitmaps: ArrayList<Bitmap>) : Drawable() {
     // FIXME : Not correct the image's size because of Rect(left, top, right, bottom) so fixed the Rect
     @RequiresApi(api = Build.VERSION_CODES.O)
     fun drawOreo() {
-        val width = bounds.width()
-        val height = bounds.height()
+        val oriWidth = bounds.width()
+        val oriHeight = bounds.height()
+
+        val widthDivider = bounds.width() / 2
+        val heightDivider = bounds.height() / 2
+
+        var separateSize = if (customAttribute.separateLine) (customAttribute.size / 2) else 0
 
         if (bitmaps.size == 1) {
-            val bitmap = scaleCenterCrop(bitmaps[0], width, height)
+            val bitmap = scaleCenterCrop(bitmaps[0], oriWidth, oriHeight)
 
-            items.add(PhotoItem(bitmap, Rect(0, 0, width, height)))
+            items.add(PhotoItem(bitmap, Rect(0, 0, oriWidth, oriHeight)))
         } else if (bitmaps.size == 2) {
-            val bitmap1 = scaleCenterCrop(bitmaps[0], width / 2, height)
-            val bitmap2 = scaleCenterCrop(bitmaps[1], width / 2, height)
+            val bitmap1 = scaleCenterCrop(bitmaps[0], widthDivider, oriHeight)
+            val bitmap2 = scaleCenterCrop(bitmaps[1], widthDivider, oriHeight)
 
-            items.add(PhotoItem(bitmap1, Rect(0, 0, width, height)))
-            items.add(PhotoItem(bitmap2, Rect(width / 2, 0, width + (width / 2), height)))
-
+            // left
+            items.add(PhotoItem(bitmap1, Rect(0, 0, oriWidth - separateSize, oriHeight)))
+            // right
+            items.add(PhotoItem(bitmap2, Rect(widthDivider + separateSize, 0, oriWidth + widthDivider + separateSize, oriHeight)))
         } else if (bitmaps.size == 3) {
-            val bitmap1 = scaleCenterCrop(bitmaps[0], width / 2, height)
-            val bitmap2 = scaleCenterCrop(bitmaps[1], width / 2, height / 2)
-            val bitmap3 = scaleCenterCrop(bitmaps[2], width / 2, height / 2)
+            val bitmap1 = scaleCenterCrop(bitmaps[0], widthDivider, oriHeight)
+            val bitmap2 = scaleCenterCrop(bitmaps[1], widthDivider, heightDivider)
+            val bitmap3 = scaleCenterCrop(bitmaps[2], widthDivider, heightDivider)
+            // left
+            items.add(PhotoItem(bitmap1, Rect(0, 0, oriWidth - separateSize, oriHeight)))
+            // right
+            items.add(PhotoItem(bitmap2, Rect(widthDivider + separateSize, 0, oriWidth + widthDivider + separateSize, oriHeight - separateSize)))
+            items.add(PhotoItem(bitmap3, Rect(widthDivider + separateSize, heightDivider + separateSize, oriWidth + widthDivider + separateSize, oriHeight + heightDivider + separateSize)))
 
-            items.add(PhotoItem(bitmap1, Rect(0, 0, width, height)))
-            items.add(PhotoItem(bitmap2, Rect(width / 2, 0, width + (width / 2), height)))
-            items.add(PhotoItem(bitmap3, Rect(width / 2, height / 2, width + (width / 2), height + (height / 2))))
-        }
-        if (bitmaps.size == 4) {
-            val bitmap1 = scaleCenterCrop(bitmaps[0], width / 2, height / 2)
-            val bitmap2 = scaleCenterCrop(bitmaps[1], width / 2, height / 2)
-            val bitmap3 = scaleCenterCrop(bitmaps[2], width / 2, height / 2)
-            val bitmap4 = scaleCenterCrop(bitmaps[3], width / 2, height / 2)
+        } else if (bitmaps.size == 4) {
+            val bitmap1 = scaleCenterCrop(bitmaps[0], widthDivider, heightDivider)
+            val bitmap2 = scaleCenterCrop(bitmaps[1], widthDivider, heightDivider)
+            val bitmap3 = scaleCenterCrop(bitmaps[2], widthDivider, heightDivider)
+            val bitmap4 = scaleCenterCrop(bitmaps[3], widthDivider, heightDivider)
 
-            items.add(PhotoItem(bitmap1, Rect(0, 0, width, height)))
-            items.add(PhotoItem(bitmap2, Rect(0, height / 2, width, height + (height / 2))))
-            items.add(PhotoItem(bitmap3, Rect(width / 2, 0, width + (width / 2), height)))
-            items.add(PhotoItem(bitmap4, Rect(width / 2, height / 2, width + (width / 2), height + (height / 2))))
+            // left
+            items.add(PhotoItem(bitmap1, Rect(0, 0, oriWidth - separateSize, oriHeight - separateSize)))
+            items.add(PhotoItem(bitmap2, Rect(0, heightDivider + separateSize, oriWidth - separateSize, oriHeight + heightDivider - separateSize)))
+
+            // right
+            items.add(PhotoItem(bitmap3, Rect(widthDivider + separateSize, 0, oriWidth + widthDivider + separateSize, oriHeight - separateSize)))
+            items.add(PhotoItem(bitmap4, Rect(widthDivider + separateSize, heightDivider + separateSize, oriWidth + widthDivider + separateSize, oriHeight + heightDivider + separateSize)))
+
         }
     }
 
@@ -185,8 +236,7 @@ class MultiDrawable(val bitmaps: ArrayList<Bitmap>) : Drawable() {
             items.add(PhotoItem(bitmap1, Rect(0, 0, width / 2, width)))
             items.add(PhotoItem(bitmap2, Rect(width / 2, 0, width, width / 2)))
             items.add(PhotoItem(bitmap3, Rect(width / 2, width / 2, width, width)))
-        }
-        if (bitmaps.size == 4) {
+        } else if (bitmaps.size > 4) {
             val bitmap1 = scaleCenterCrop(bitmaps[0], width / 2, width / 2)
             val bitmap2 = scaleCenterCrop(bitmaps[1], width / 2, width / 2)
             val bitmap3 = scaleCenterCrop(bitmaps[2], width / 2, width / 2)
@@ -202,7 +252,7 @@ class MultiDrawable(val bitmaps: ArrayList<Bitmap>) : Drawable() {
     override fun draw(canvas: Canvas?) {
         if (canvas != null) {
             items.forEach {
-                canvas.drawBitmap(it.bitmap, bounds, it.position, paint)
+                canvas.drawBitmap(it.bitmap, bounds, it.rect, paint)
             }
         }
     }
@@ -210,14 +260,14 @@ class MultiDrawable(val bitmaps: ArrayList<Bitmap>) : Drawable() {
     /**
      * scale and center crop image
      */
-    private fun scaleCenterCrop(source: Bitmap, newHeight: Int, newWidth: Int): Bitmap {
-        return ThumbnailUtils.extractThumbnail(source, newWidth, newHeight)
+    private fun scaleCenterCrop(bitmap: Bitmap, newWidth: Int, newHeight: Int): Bitmap {
+        return ThumbnailUtils.extractThumbnail(bitmap, newWidth, newHeight)
     }
 
     /***
-     * Data class for store bitmap and position
+     * Data class for store bitmap and rect
      */
-    data class PhotoItem(val bitmap: Bitmap, val position: Rect)
+    data class PhotoItem(val bitmap: Bitmap, val rect: Rect)
 
 
     //***Needed to override***//
@@ -225,8 +275,8 @@ class MultiDrawable(val bitmaps: ArrayList<Bitmap>) : Drawable() {
         paint.alpha = alpha
     }
 
-    override fun onBoundsChange(bounds: Rect) {
-        super.onBoundsChange(bounds)
+    override fun onBoundsChange(rect: Rect) {
+        super.onBoundsChange(rect)
         init()
     }
 
@@ -237,4 +287,3 @@ class MultiDrawable(val bitmaps: ArrayList<Bitmap>) : Drawable() {
     }
     //***------------------***//
 }
-
